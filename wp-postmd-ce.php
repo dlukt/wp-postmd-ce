@@ -141,6 +141,9 @@ function wppostmd_html_to_markdown($html) {
     $html = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $html);
     $html = preg_replace('/<style\b[^>]*>(.*?)<\/style>/is', '', $html);
     
+    // Convert code blocks first (must be before inline code) - allow whitespace between pre and code tags
+    $html = preg_replace('/<pre[^>]*>\s*<code[^>]*>(.*?)<\/code>\s*<\/pre>/is', "\n```\n$1\n```\n", $html);
+    
     // Convert headings
     $html = preg_replace('/<h1[^>]*>(.*?)<\/h1>/is', "\n# $1\n", $html);
     $html = preg_replace('/<h2[^>]*>(.*?)<\/h2>/is', "\n## $1\n", $html);
@@ -164,13 +167,39 @@ function wppostmd_html_to_markdown($html) {
     $html = preg_replace('/<img[^>]+src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/is', '![$2]($1)', $html);
     $html = preg_replace('/<img[^>]+src="([^"]*)"[^>]*\/?>/is', '![]($1)', $html);
     
-    // Convert code blocks (must be before inline code) - allow whitespace between pre and code tags
-    $html = preg_replace('/<pre[^>]*>\s*<code[^>]*>(.*?)<\/code>\s*<\/pre>/is', "\n```\n$1\n```\n", $html);
+    // Convert inline code (after processing links to avoid conflicts)
     $html = preg_replace('/<code[^>]*>(.*?)<\/code>/is', "`$1`", $html);
     
-    // Convert blockquotes - process content recursively
+    // Convert ordered lists with numbered items (process after inline elements)
+    $html = preg_replace_callback('/<ol[^>]*>(.*?)<\/ol>/is', function($matches) {
+        $content = $matches[1];
+        preg_match_all('/<li[^>]*>(.*?)<\/li>/is', $content, $items);
+        $result = "\n";
+        foreach ($items[1] as $index => $item) {
+            // Strip remaining HTML tags but keep the converted markdown
+            $item = preg_replace('/<[^>]+>/', '', $item);
+            $result .= ($index + 1) . ". " . trim($item) . "\n";
+        }
+        return $result;
+    }, $html);
+    
+    // Convert unordered lists (process after inline elements)
+    $html = preg_replace_callback('/<ul[^>]*>(.*?)<\/ul>/is', function($matches) {
+        $content = $matches[1];
+        preg_match_all('/<li[^>]*>(.*?)<\/li>/is', $content, $items);
+        $result = "\n";
+        foreach ($items[1] as $item) {
+            // Strip remaining HTML tags but keep the converted markdown
+            $item = preg_replace('/<[^>]+>/', '', $item);
+            $result .= "* " . trim($item) . "\n";
+        }
+        return $result;
+    }, $html);
+    
+    // Convert blockquotes (process after inline elements)
     $html = preg_replace_callback('/<blockquote[^>]*>(.*?)<\/blockquote>/is', function($matches) {
-        $content = strip_tags($matches[1]);
+        // Strip remaining HTML tags but keep the converted markdown
+        $content = preg_replace('/<[^>]+>/', '', $matches[1]);
         $lines = explode("\n", trim($content));
         $quoted = array_map(function($line) {
             return '> ' . trim($line);
@@ -178,28 +207,6 @@ function wppostmd_html_to_markdown($html) {
             return trim($line) !== '';
         }));
         return "\n" . implode("\n", $quoted) . "\n";
-    }, $html);
-    
-    // Convert ordered lists with numbered items
-    $html = preg_replace_callback('/<ol[^>]*>(.*?)<\/ol>/is', function($matches) {
-        $content = $matches[1];
-        preg_match_all('/<li[^>]*>(.*?)<\/li>/is', $content, $items);
-        $result = "\n";
-        foreach ($items[1] as $index => $item) {
-            $result .= ($index + 1) . ". " . trim(strip_tags($item)) . "\n";
-        }
-        return $result;
-    }, $html);
-    
-    // Convert unordered lists
-    $html = preg_replace_callback('/<ul[^>]*>(.*?)<\/ul>/is', function($matches) {
-        $content = $matches[1];
-        preg_match_all('/<li[^>]*>(.*?)<\/li>/is', $content, $items);
-        $result = "\n";
-        foreach ($items[1] as $item) {
-            $result .= "* " . trim(strip_tags($item)) . "\n";
-        }
-        return $result;
     }, $html);
     
     // Convert line breaks

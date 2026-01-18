@@ -85,18 +85,18 @@ function wppostmd_convert_to_markdown($post) {
     $markdown = '';
     
     // Add title
-    $markdown .= "# " . $post->post_title . "\n\n";
+    $markdown .= "# " . esc_html($post->post_title) . "\n\n";
     
     // Add metadata
-    $markdown .= "**Author:** " . get_the_author_meta('display_name', $post->post_author) . "\n";
+    $markdown .= "**Author:** " . esc_html(get_the_author_meta('display_name', $post->post_author)) . "\n";
     $markdown .= "**Published:** " . get_the_date('Y-m-d H:i:s', $post) . "\n";
-    $markdown .= "**URL:** " . get_permalink($post->ID) . "\n\n";
+    $markdown .= "**URL:** " . esc_url(get_permalink($post->ID)) . "\n\n";
     
     // Add categories if any
     $categories = get_the_category($post->ID);
     if (!empty($categories)) {
         $cat_names = array_map(function($cat) {
-            return $cat->name;
+            return esc_html($cat->name);
         }, $categories);
         $markdown .= "**Categories:** " . implode(', ', $cat_names) . "\n";
     }
@@ -105,7 +105,7 @@ function wppostmd_convert_to_markdown($post) {
     $tags = get_the_tags($post->ID);
     if (!empty($tags)) {
         $tag_names = array_map(function($tag) {
-            return $tag->name;
+            return esc_html($tag->name);
         }, $tags);
         $markdown .= "**Tags:** " . implode(', ', $tag_names) . "\n";
     }

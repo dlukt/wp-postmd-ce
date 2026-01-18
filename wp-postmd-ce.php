@@ -34,8 +34,7 @@ function wppostmd_add_markdown_link_tag() {
         return;
     }
     
-    // Get the post permalink and construct markdown URL
-    $permalink = get_permalink($post->ID);
+    // Construct markdown URL
     $markdown_url = trailingslashit(get_site_url()) . $post->post_name . '.md';
     
     // Output the link tag
@@ -150,11 +149,13 @@ function wppostmd_html_to_markdown($html) {
     $html = preg_replace('/<h5[^>]*>(.*?)<\/h5>/is', "\n##### $1\n", $html);
     $html = preg_replace('/<h6[^>]*>(.*?)<\/h6>/is', "\n###### $1\n", $html);
     
-    // Convert bold and strong
-    $html = preg_replace('/<(strong|b)[^>]*>(.*?)<\/(strong|b)>/is', "**$2**", $html);
+    // Convert bold and strong (handle both separately to avoid mismatched tags)
+    $html = preg_replace('/<strong[^>]*>(.*?)<\/strong>/is', "**$1**", $html);
+    $html = preg_replace('/<b[^>]*>(.*?)<\/b>/is', "**$1**", $html);
     
-    // Convert italic and em
-    $html = preg_replace('/<(em|i)[^>]*>(.*?)<\/(em|i)>/is', "*$2*", $html);
+    // Convert italic and em (handle both separately to avoid mismatched tags)
+    $html = preg_replace('/<em[^>]*>(.*?)<\/em>/is', "*$1*", $html);
+    $html = preg_replace('/<i[^>]*>(.*?)<\/i>/is', "*$1*", $html);
     
     // Convert links
     $html = preg_replace('/<a[^>]+href="([^"]*)"[^>]*>(.*?)<\/a>/is', '[$2]($1)', $html);
@@ -163,8 +164,8 @@ function wppostmd_html_to_markdown($html) {
     $html = preg_replace('/<img[^>]+src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/is', '![$2]($1)', $html);
     $html = preg_replace('/<img[^>]+src="([^"]*)"[^>]*\/?>/is', '![]($1)', $html);
     
-    // Convert code blocks (must be before inline code)
-    $html = preg_replace('/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/is', "\n```\n$1\n```\n", $html);
+    // Convert code blocks (must be before inline code) - allow whitespace between pre and code tags
+    $html = preg_replace('/<pre[^>]*>\s*<code[^>]*>(.*?)<\/code>\s*<\/pre>/is', "\n```\n$1\n```\n", $html);
     $html = preg_replace('/<code[^>]*>(.*?)<\/code>/is', "`$1`", $html);
     
     // Convert blockquotes - process content recursively
